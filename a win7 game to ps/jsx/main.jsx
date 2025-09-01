@@ -1,2 +1,0 @@
-//photoshop game
-//dummy
