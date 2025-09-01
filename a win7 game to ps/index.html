@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>翻一翻记忆游戏</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            padding: 20px;
+            margin: 0;
+            height: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        
+        .game-info {
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(5, 100px);
+            grid-gap: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            width: 100px;
+            height: 100px;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .card.flipped {
+            background-color: white;
+            color: #333;
+            transform: rotateY(180deg);
+        }
+        
+        .card.matched {
+            background-color: #FF9800;
+            cursor: default;
+        }
+        
+        .restart-btn {
+            padding: 10px 20px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .restart-btn:hover {
+            background-color: #0b7dda;
+        }
+    </style>
+</head>
+<body>
+    <h1>翻一翻记忆游戏</h1>
+    <div class="game-info">
+        <span id="moves">步数: 0</span> | 
+        <span id="pairs">已匹配: 0/12</span>
+    </div>
+    <div class="game-board" id="gameBoard"></div>
+    <button class="restart-btn" id="restartBtn">重新开始</button>
+
+    <script>
+        // 确保DOM完全加载后再执行
+        window.onload = function() {
+            const gameBoard = document.getElementById('gameBoard');
+            const movesDisplay = document.getElementById('moves');
+            const pairsDisplay = document.getElementById('pairs');
+            const restartBtn = document.getElementById('restartBtn');
+            
+            let cards = [];
+            let hasFlippedCard = false;
+            let lockBoard = false;
+            let firstCard, secondCard;
+            let moves = 0;
+            let matchedPairs = 0;
+            const totalPairs = 12;
+            
+            // 初始化游戏
+            function initGame() {
+                moves = 0;
+                matchedPairs = 0;
+                movesDisplay.textContent = `步数: ${moves}`;
+                pairsDisplay.textContent = `已匹配: ${matchedPairs}/${totalPairs}`;
+                
+                // 创建卡片对
+                const symbols = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮'];
+                let cardValues = [];
+                
+                for (let i = 0; i < totalPairs; i++) {
+                    cardValues.push(symbols[i]);
+                    cardValues.push(symbols[i]);
+                }
+                
+                // 添加一个单独的卡片
+                cardValues.push('⭐');
+                
+                // 洗牌
+                cardValues = shuffleArray(cardValues);
+                
+                // 创建卡片元素
+                gameBoard.innerHTML = '';
+                cards = [];
+                
+                cardValues.forEach((value, index) => {
+                    const card = document.createElement('div');
+                    card.classList.add('card');
+                    card.dataset.value = value;
+                    card.dataset.index = index;
+                    
+                    // 创建卡片内容
+                    const cardContent = document.createElement('span');
+                    cardContent.textContent = value;
+                    cardContent.style.display = 'none';
+                    
+                    card.appendChild(cardContent);
+                    card.addEventListener('click', flipCard);
+                    gameBoard.appendChild(card);
+                    cards.push(card);
+                });
+            }
+            
+            // 洗牌函数
+            function shuffleArray(array) {
+                const newArray = [...array];
+                for (let i = newArray.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+                }
+                return newArray;
+            }
+            
+            // 翻转卡片
+            function flipCard() {
+                if (lockBoard) return;
+                if (this === firstCard) return;
+                if (this.classList.contains('matched')) return;
+                
+                this.classList.add('flipped');
+                this.querySelector('span').style.display = 'block';
+                
+                if (!hasFlippedCard) {
+                    // 第一次点击
+                    hasFlippedCard = true;
+                    firstCard = this;
+                    return;
+                }
+                
+                // 第二次点击
+                secondCard = this;
+                moves++;
+                movesDisplay.textContent = `步数: ${moves}`;
+                
+                checkForMatch();
+            }
+            
+            // 检查是否匹配
+            function checkForMatch() {
+                const isMatch = firstCard.dataset.value === secondCard.dataset.value;
+                
+                if (isMatch) {
+                    disableMatchedCards();
+                    matchedPairs++;
+                    pairsDisplay.textContent = `已匹配: ${matchedPairs}/${totalPairs}`;
+                    
+                    if (matchedPairs === totalPairs) {
+                        setTimeout(() => {
+                            alert(`恭喜你赢了！用了 ${moves} 步。`);
+                        }, 500);
+                    }
+                } else {
+                    unflipCards();
+                }
+            }
+            
+            // 禁用已匹配的卡片
+            function disableMatchedCards() {
+                firstCard.classList.add('matched');
+                secondCard.classList.add('matched');
+                firstCard.removeEventListener('click', flipCard);
+                secondCard.removeEventListener('click', flipCard);
+                
+                resetBoard();
+            }
+            
+            // 翻回不匹配的卡片
+            function unflipCards() {
+                lockBoard = true;
+                
+                setTimeout(() => {
+                    firstCard.classList.remove('flipped');
+                    secondCard.classList.remove('flipped');
+                    firstCard.querySelector('span').style.display = 'none';
+                    secondCard.querySelector('span').style.display = 'none';
+                    
+                    resetBoard();
+                }, 1000);
+            }
+            
+            // 重置棋盘状态
+            function resetBoard() {
+                [hasFlippedCard, lockBoard] = [false, false];
+                [firstCard, secondCard] = [null, null];
+            }
+            
+            // 重新开始游戏
+            restartBtn.addEventListener('click', initGame);
+            
+            // 初始化游戏
+            initGame();
+            
+            // 如果是PS插件环境，初始化CSInterface
+            if (typeof CSInterface !== 'undefined') {
+                const csInterface = new CSInterface();
+                console.log("Running in PS plugin environment");
+                
+                // 可以在这里添加与PS插件的交互代码
+            } else {
+                console.log("Running in standalone browser mode");
+            }
+        };
+    </script>
+</body>
+</html>
